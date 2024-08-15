@@ -1,18 +1,19 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const tracer = @import("./mod.zig");
 const alloc = std.heap.c_allocator;
 const log = std.log.scoped(.tracer);
 const root = @import("root");
 const trim_count = root.build_options.src_file_trimlen;
 
-var pid: std.os.linux.pid_t = undefined;
-threadlocal var tid: std.os.linux.pid_t = undefined;
+var pid: std.posix.pid_t = undefined;
+threadlocal var tid: std.Thread.Id = undefined;
 threadlocal var path: []const u8 = undefined;
 threadlocal var file: std.fs.File = undefined;
 threadlocal var buffered_writer: std.io.BufferedWriter(4096, std.fs.File.Writer) = undefined;
 
 pub fn init() !void {
-    pid = std.os.linux.getpid();
+    pid = if (builtin.os.tag != .linux) @intCast(0) else std.os.linux.getpid();
 }
 
 pub fn deinit() void {
@@ -20,7 +21,7 @@ pub fn deinit() void {
 }
 
 pub fn init_thread(dir: std.fs.Dir) !void {
-    tid = std.os.linux.gettid();
+    tid = std.Thread.getCurrentId();
 
     path = try std.fmt.allocPrint(alloc, "{d}.{d}.spall", .{ pid, tid });
     file = try dir.createFile(path, .{});
